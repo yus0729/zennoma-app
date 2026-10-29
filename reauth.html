@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>ZENnoMA</title>
+    <!-- 退会の前の本人の確認の戻り先（web/src/lib/reauth.ts）。Apple / Google がここへ戻し、URL の # の後ろに
+         確認の印（id_token）を付けてくる。印をこのタブの sessionStorage に置いて、すぐアプリの最初へ戻る。
+         印は URL の履歴に残さない（replace）。読み込みの間に一瞬見えるので、地の色だけはアプリの最初と同じにする -->
+    <style>
+      html, body { margin: 0; height: 100%; background: #f7f4ee; }
+      @media (prefers-color-scheme: dark) { html, body { background: #050506; } }
+    </style>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.hash.slice(1));
+        var pending = null;
+        try {
+          pending = JSON.parse(sessionStorage.getItem("zennoma.reauth.pending") || "null");
+          sessionStorage.removeItem("zennoma.reauth.pending");
+        } catch (e) {}
+        var result = { at: Date.now() };
+        // 出かけるときに置いた印と違えば（別の操作の戻り・作り物）受け取らない
+        if (!pending || params.get("state") !== pending.state) result.error = "state";
+        else if (params.get("error")) result.error = params.get("error");
+        else if (!params.get("id_token")) result.error = "no_token";
+        else {
+          result.provider = pending.provider;
+          result.idToken = params.get("id_token");
+        }
+        try {
+          sessionStorage.setItem("zennoma.reauth.result", JSON.stringify(result));
+        } catch (e) {}
+        window.location.replace("/");
+      })();
+    </script>
+  </body>
+</html>
